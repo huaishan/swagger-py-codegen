@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+
 class UserInfo(object):
     _scopes = None
     client_id = None

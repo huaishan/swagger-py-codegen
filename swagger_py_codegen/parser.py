@@ -112,7 +112,7 @@ class Swagger(object):
 
     @property
     def module_name(self):
-        return self.base_path.strip('/').replace('/', '_')
+        return self.base_path.strip('/').replace('/', '_').replace('.', '_')
 
     @property
     def base_path(self):

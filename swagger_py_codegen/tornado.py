@@ -132,10 +132,11 @@ class TornadoGenerator(CodeGenerator):
 
     dependencies = [SchemaGenerator]
 
-    def __init__(self, swagger):
+    def __init__(self, swagger, package):
         super(TornadoGenerator, self).__init__(swagger)
         self.with_spec = False
         self.with_ui = False
+        self.package = package
 
     def _dependence_callback(self, code):
         if not isinstance(code, Schema):
@@ -213,7 +214,7 @@ class TornadoGenerator(CodeGenerator):
 
     def _process(self):
         views = self._process_data()
-        yield Router(dict(views=views, blueprint=self.swagger.module_name))
+        yield Router(dict(views=views, blueprint=self.swagger.base_path))
         for view in views:
             yield View(view, dist_env=dict(view=view['endpoint']))
         if self.with_spec:
@@ -229,7 +230,7 @@ class TornadoGenerator(CodeGenerator):
 
         yield Validator()
 
-        yield Api()
+        yield Api(dict(package=self.package))
 
         yield Core()
 

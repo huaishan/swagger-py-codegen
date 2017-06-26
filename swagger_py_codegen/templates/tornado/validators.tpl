@@ -3,6 +3,7 @@
 {% include '_do_not_change.tpl' %}
 from __future__ import absolute_import
 import tornado.web
+from tornado import gen
 from tornado.httputil import HTTPHeaders
 from werkzeug.datastructures import MultiDict
 
@@ -10,6 +11,7 @@ import json
 import six
 from functools import wraps
 from jsonschema import Draft4Validator
+from jsonschema.exceptions import ValidationError
 
 from .schemas import validators, scopes, normalize, filters
 
@@ -64,9 +66,27 @@ class ValidatorAdaptor(object):
         return result
 
     def validate(self, value):
-        value = self.type_convert(value)
-        errors = list(e.message for e in self.validator.iter_errors(value))
+        try:
+            value = self.type_convert(value)
+            # errors = list(e.message for e in self.validator.iter_errors(value))
+
+            self.validator.validate(value)
+            errors = None
+        except ValidationError as e:
+            errors = '{0}: {1}'.format(e.path[0], e.message) \
+                if e.path else '{0}'.format(e.message)
+        except ValueError as e:
+            errors = str(e)
         return normalize(self.validator.schema, value)[0], errors
+
+
+def read_only(schema):
+    schema['required'] = []
+    for k, v in schema['properties'].iteritems():
+        if v.get('ReadOnly'):
+            del schema['properties'][k]
+    return schema
+
 
 def request_validate(obj):
     def _request_validate(view):
@@ -89,17 +109,21 @@ def request_validate(obj):
                     value = getattr(request, 'body', MultiDict())
                 elif location == 'args':
                     value = getattr(request, 'query_arguments', MultiDict())
-                    for k,v in six.iteritems(value):
+                    for k, v in six.iteritems(value):
                         if isinstance(v, list) and len(v) == 1:
                             value[k] = v[0]
                     value = MultiDict(value)
                 else:
                     value = getattr(request, location, MultiDict())
-                validator = ValidatorAdaptor(schema)
+                validator = ValidatorAdaptor(
+                    schema if method != 'POST' else read_only(schema))
                 result, reasons = validator.validate(value)
                 if reasons:
-                    raise tornado.web.HTTPError(422, message='Unprocessable Entity',
-                                                reason=json.dumps(reasons))
+                    # raise tornado.web.HTTPError(422, message='Unprocessable Entity',
+                    #                             reason=json.dumps(reasons))
+                    raise tornado.web.HTTPError(
+                        422, message='Unprocessable Entity',
+                        reason=reasons if isinstance(reasons, str) else json.dumps(reasons))
                 setattr(obj, location, result)
             return view(*args, **kwargs)
         return wrapper
@@ -109,8 +133,9 @@ def request_validate(obj):
 def response_filter(obj):
     def _response_filter(view):
         @wraps(view)
+        @gen.coroutine
         def wrapper(*args, **kwargs):
-            resp = view(*args, **kwargs)
+            resp = yield view(*args, **kwargs)
             request = obj.request
             endpoint = obj.endpoint
             method = request.method
@@ -140,13 +165,16 @@ def response_filter(obj):
                         {'properties': schemas['headers']}, headers)
                     errors.extend(header_errors)
                 if errors:
+                    # raise tornado.web.HTTPError(
+                    #     500, message='Expectation Failed',
+                    #     reason=json.dumps(errors))
                     raise tornado.web.HTTPError(
                         500, message='Expectation Failed',
-                        reason=json.dumps(errors))
+                        reason=errors if isinstance(errors, str) else json.dumps(errors))
             obj.set_status(status)
             obj.set_headers(headers)
             obj.write(json.dumps(resp))
-            return
+
         return wrapper
     return _response_filter
 

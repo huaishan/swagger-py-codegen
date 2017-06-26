@@ -10,6 +10,7 @@ from core import load_tornado_settings
 modules = ['{{ blueprint }}']
 config = load_tornado_settings(*modules)
 
+
 class Application(tornado.web.Application):
     def __init__(self, url_list, **app_settings):
         tornado.web.Application.__init__(self, url_list, **app_settings)

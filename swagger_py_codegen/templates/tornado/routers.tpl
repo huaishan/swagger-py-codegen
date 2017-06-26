@@ -15,6 +15,7 @@ routes = [
     {%- endfor %}
 ]
 
+
 def load_uris(config):
     try:
         config.update_uri(routes, url_prefix)

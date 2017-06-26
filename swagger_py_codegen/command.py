@@ -41,7 +41,7 @@ def write(dist, content):
     if not exists(dir_):
         makedirs(dir_)
     with codecs.open(dist, 'w', 'utf-8') as f:
-        f.write(content)
+        f.write(content+'\n')
 
 
 def _copy_ui_dir(ui_dest, ui_src):
@@ -95,14 +95,16 @@ def generate(destination, swagger_doc, force=False, package=None,
     package = package or destination.replace('-', '_')
     data = spec_load(swagger_doc)
     swagger = Swagger(data, pool)
+
     if templates == 'tornado':
-        generator = TornadoGenerator(swagger)
+        generator = TornadoGenerator(swagger, package)
     elif templates == 'falcon':
         generator = FalconGenerator(swagger)
     else:
         generator = FlaskGenerator(swagger)
     generator.with_spec = specification
     generator.with_ui = ui
+
     template = Template()
     if template_dir:
         template.add_searchpath(template_dir)
@@ -132,4 +134,3 @@ def generate(destination, swagger_doc, force=False, package=None,
 
         if status != 'skip':
             write(dest, source)
-

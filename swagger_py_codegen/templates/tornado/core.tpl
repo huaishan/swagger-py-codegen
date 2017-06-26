@@ -2,10 +2,12 @@
 from __future__ import unicode_literals, absolute_import
 
 import six
+import json
 import importlib
 import tornado.web
 
 settings = {}
+
 
 def load_tornado_settings(*modules):
     settings.update({'MODULES': modules})
@@ -21,12 +23,7 @@ def load_tornado_settings(*modules):
         pass
 
     for module in modules:
-        try:
-            mods.append(importlib.import_module('%s.routes' % module))
-        except ImportError:
-            raise ImportError(
-                "Could not import routers '%s' (Is it on sys.path?)" % (
-                    module))
+        mods.append(importlib.import_module('%s.routes' % module))
 
     for mod in mods:
         if hasattr(mod, 'load_uris'):
@@ -34,10 +31,12 @@ def load_tornado_settings(*modules):
 
     return config
 
+
 class RequestHandler(tornado.web.RequestHandler):
     on_initialize_decorators = []
 
     def initialize(self):
+        self.set_header('Content-Type', 'application/json; charset=UTF-8')
         request = self.request
         meth = getattr(self, self.request.method.lower(), None)
         if meth is None and self.request.method == 'HEAD':
@@ -67,10 +66,17 @@ class RequestHandler(tornado.web.RequestHandler):
         the "current" exception for purposes of methods like
         ``sys.exc_info()`` or ``traceback.format_exc``.
         """
+        # if isinstance(self._reason, str):
+        #     try:
+        #         self._reason = json.loads(self._reason)
+        #     except:
+        #         pass
+
         self.finish({
             "code": status_code,
             "message": self._reason,
         })
+
 
 class Config(object):
     def __getitem__(self, item):
@@ -90,8 +96,12 @@ class Config(object):
     def uri_tuple(self, route, url_prefix):
         route['resource'].endpoint = route['endpoint']
         route['resource'].blueprint = url_prefix.replace('/', '_')
+
+        if not url_prefix.startswith('/'):
+            url_prefix = '/' + url_prefix
+
         if url_prefix:
-            return r'/' + url_prefix + route['urls'][0], route['resource']
+            return url_prefix + route['urls'][0], route['resource']
         return route['urls'][0], route['resource']
 
     def update_uri(self, routes, url_prefix=r''):
