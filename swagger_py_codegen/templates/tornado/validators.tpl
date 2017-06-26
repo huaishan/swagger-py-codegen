@@ -116,7 +116,7 @@ def request_validate(obj):
                 else:
                     value = getattr(request, location, MultiDict())
                 validator = ValidatorAdaptor(
-                    schema if method != 'POST' else read_only(schema))
+                    read_only(schema) if method in ('POST', 'PUT') else schema)
                 result, reasons = validator.validate(value)
                 if reasons:
                     # raise tornado.web.HTTPError(422, message='Unprocessable Entity',
