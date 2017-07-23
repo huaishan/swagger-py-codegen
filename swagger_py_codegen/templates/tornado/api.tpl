@@ -18,7 +18,7 @@ class ApiHandler(RequestHandler):
 
     @staticmethod
     def success(data=None, code=200, msg=""):
-        return {"code": code, "message": msg, "data": data}
+        return {"code": code, "message": msg, "result": data}
 
     @staticmethod
     def failed(code=500, msg="Server error."):

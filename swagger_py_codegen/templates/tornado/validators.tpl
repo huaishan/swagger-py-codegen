@@ -2,6 +2,9 @@
 
 {% include '_do_not_change.tpl' %}
 from __future__ import absolute_import
+
+import copy
+
 import tornado.web
 from tornado import gen
 from tornado.httputil import HTTPHeaders
@@ -81,10 +84,13 @@ class ValidatorAdaptor(object):
 
 
 def read_only(schema):
-    schema['required'] = []
-    for k, v in schema['properties'].iteritems():
-        if v.get('ReadOnly'):
-            del schema['properties'][k]
+    properties = copy.deepcopy(schema['properties'])
+    for k, v in properties.iteritems():
+        if v.get('readOnly'):
+            if k in schema['properties']:
+                del schema['properties'][k]
+            if k in schema['required']:
+                schema['required'].remove(k)
     return schema
 
 
@@ -159,18 +165,18 @@ def response_filter(obj):
                     raise tornado.web.HTTPError(
                         500, message='`%d` is not a defined status code.' % status)
 
-                resp, errors = normalize(schemas['schema'], resp)
-                if schemas['headers']:
-                    headers, header_errors = normalize(
-                        {'properties': schemas['headers']}, headers)
-                    errors.extend(header_errors)
-                if errors:
-                    # raise tornado.web.HTTPError(
-                    #     500, message='Expectation Failed',
-                    #     reason=json.dumps(errors))
-                    raise tornado.web.HTTPError(
-                        500, message='Expectation Failed',
-                        reason=errors if isinstance(errors, str) else json.dumps(errors))
+                # resp, errors = normalize(schemas['schema'], resp)
+                # if schemas['headers']:
+                #     headers, header_errors = normalize(
+                #         {'properties': schemas['headers']}, headers)
+                #     errors.extend(header_errors)
+                # if errors:
+                #     # raise tornado.web.HTTPError(
+                #     #     500, message='Expectation Failed',
+                #     #     reason=json.dumps(errors))
+                #     raise tornado.web.HTTPError(
+                #         500, message='Expectation Failed',
+                #         reason=errors if isinstance(errors, str) else json.dumps(errors))
             obj.set_status(status)
             obj.set_headers(headers)
             obj.write(json.dumps(resp))
