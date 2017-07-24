@@ -59,7 +59,7 @@ class ValidatorAdaptor(object):
 
         for k, values in obj.lists():
             prop = self.validator.schema['properties'].get(k, {})
-            type_ = prop.get('type')
+            type_ = prop.get('type')[0] if isinstance(prop.get('type'), list) else prop.get('type')
             fun = convert_funs.get(type_, lambda v: v[0])
             if type_ == 'array':
                 item_type = prop.get('items', {}).get('type')

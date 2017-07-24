@@ -33,6 +33,10 @@ def _parameters_to_schemas(params):
             if param.get('required'):
                 required.append(param['name'])
                 prop.pop('required')
+            else:
+                typ = prop.get('type', [])
+                prop['type'] = typ.append('null') if isinstance(typ, list) else [typ, 'null']
+
             properties[prop['name']] = prop
             prop.pop('name')
         if len(properties) == 0:
@@ -89,7 +93,8 @@ def build_data(swagger):
                 scopes[(endpoint, method)] = list(security.values()).pop()
                 break
 
-    schemas = OrderedDict([(schema_var_name(path), swagger.get(path)) for path in swagger.definitions])
+    schemas = OrderedDict([(schema_var_name(path), _build_schema_data(swagger.get(path)))
+                           for path in swagger.definitions])
 
     data = dict(
         schemas=schemas,
@@ -101,6 +106,22 @@ def build_data(swagger):
         normalize=getsource(normalize)
     )
     return data
+
+
+def _build_schema_data(schema):
+    properties = schema.get('properties', {})
+    requireds = schema.get('required', [])
+
+    for k, v in properties.items():
+        if k in requireds:
+            continue
+        if v.get('type'):
+            v['type'] = (v['type'].append('null')
+                         if isinstance(v['type'], list)
+                         else [v['type'], 'null'])
+    schema['properties'] = properties
+    schema['requireds'] = requireds
+    return schema
 
 
 class SchemaGenerator(CodeGenerator):
@@ -242,6 +263,7 @@ def normalize(schema, data, required_defaults=None):
             'default': _normalize_default,
         }
         type_ = schema.get('type', 'object')
+        type_ = type_[0] if isinstance(type_, list) else type_
         if not type_ in funcs:
             type_ = 'default'
 
